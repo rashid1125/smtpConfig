@@ -39,7 +39,7 @@ class EmailController extends Controller
      *
      * @return \Illuminate\Contracts\View\View|\Illuminate\Foundation\Application|\Illuminate\Contracts\View\Factory
      */
-    public function index(): \Illuminate\Contracts\View\View | \Illuminate\Foundation\Application | \Illuminate\Contracts\View\Factory
+    public function index()
     {
         $data['modules'] = ['user/add_smtp'];
         $data['title']   = 'Add Email SMTP';
@@ -59,7 +59,7 @@ class EmailController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse|bool|array
      */
-    public function saveEmail(Request $request): \Illuminate\Http\JsonResponse | bool | array
+    public function saveEmail(Request $request): \Illuminate\Http\JsonResponse
     {
         $result = $this->runTransaction(function () use ($request) {
             $emailObject = json_decode($request->input('emailObject'), true);
@@ -90,7 +90,7 @@ class EmailController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse|bool|array
      */
-    public function getEmailById(Request $request): \Illuminate\Http\JsonResponse | bool | array
+    public function getEmailById(Request $request): \Illuminate\Http\JsonResponse
     {
         $result = $this->runException(function () use ($request) {
             $emailId = $request->input('emailId');
@@ -112,7 +112,7 @@ class EmailController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse|bool|array
      */
-    public function getEmailDataTable(Request $request): \Illuminate\Http\JsonResponse | bool | array
+    public function getEmailDataTable(Request $request): \Illuminate\Http\JsonResponse
     {
         $result = $this->runException(function () use ($request) {
             $companyId      = $this->getCompanyId();
@@ -135,7 +135,7 @@ class EmailController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse|bool|array
      */
-    public function sendOtpEmail(Request $request): \Illuminate\Http\JsonResponse | bool | array
+    public function sendOtpEmail(Request $request): \Illuminate\Http\JsonResponse
     {
         $result = $this->runException(function () use ($request) {
             $validated = $request->validate(
@@ -170,25 +170,28 @@ class EmailController extends Controller
                     throw new UserAlertException('Email password not found', 404);
                 }
                 $encryption = $email->encryption;
-                Config::set('mail.mailers.smtp.host', $host);
-                Config::set('mail.mailers.smtp.port', $port);
-                Config::set('mail.mailers.smtp.username', $username);
-                Config::set('mail.mailers.smtp.password', $password);
-                Config::set('mail.mailers.smtp.encryption', $encryption);
-                Config::set('mail.from.address', $from_email);
-                Config::set('mail.from.name', $from_email);
+                $mailerName = 'custom_' . $email->id;
+                Config::set('mail.mailers.' . $mailerName, [
+                    'transport'  => 'smtp',
+                    'host'       => $host,
+                    'port'       => $port,
+                    'username'   => $username,
+                    'password'   => $password,
+                    'encryption' => $encryption,
+                    'from'       => ['address' => $from_email, 'name' => $from_email],
+                ]);
                 try {
                     $mailable = new OtpMail($validated['otpUsername'], $validated['otpCompany'], $validated['otpTime'], $validated['otpCode']);
-                    if (Mail::to($otpEmail)->send($mailable)) {
-                        $emailSent = true;
-                        break;
-                    }
+                    Mail::mailer($mailerName)->to($otpEmail)->send($mailable);
+                    $emailSent = true;
+                    break;
                 } catch (\Exception $e) {
+                    $emailSent = false;
                     Log::error('Email sending failed for ' . $username . ' with error: ' . $e->getMessage());
                 }
             }
             if (! $emailSent) {
-                throw new UserAlertException('Email not sent with any configuration', 404);
+                throw new UserAlertException('Email not sent with any configuration', 400);
             }
 
             return true;
@@ -206,7 +209,7 @@ class EmailController extends Controller
      *
      * @return array
      */
-    private static function checkEmailArrayOrString(string | array $otpEmail): array
+    private static function checkEmailArrayOrString($otpEmail): array
     {
         if (empty($otpEmail)) {
             throw new UserAlertException('Email list cannot be empty', 400);

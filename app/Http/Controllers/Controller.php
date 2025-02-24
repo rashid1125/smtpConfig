@@ -4,10 +4,6 @@ namespace App\Http\Controllers;
 use App\Exceptions\UserAlertException;
 use App\Traits\BaseHandlingTrait;
 use App\Utilities\LoadDataBaseTableDefaultSchema;
-use Carbon\Carbon;
-use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Contracts\View\Factory;
-use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Foundation\Validation\ValidatesRequests;
@@ -59,31 +55,6 @@ abstract class Controller extends BaseController
     }
 
     /**
-     * Function hasVoucherRights
-     *
-     * @param $rightsType
-     * @param $rightsName
-     *
-     * @return mixed
-     */
-    protected function hasVoucherRights($rightsType, $rightsName): mixed
-    {
-        return getValidRoleGroupUserPermissions($rightsType, $rightsName);
-    }
-
-    /**
-     * Function loadErrorPage
-     *
-     * @param array $instance
-     *
-     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View
-     */
-    protected function loadErrorPage(array $instance = []): Factory | View | Application
-    {
-        return view('layouts.page_404', ['instance' => $instance]);
-    }
-
-    /**
      * Function ValidatorByObject
      *
      * @param $objectData
@@ -102,7 +73,15 @@ abstract class Controller extends BaseController
         }
     }
 
-    protected function getPrimaryKeyValueIfPresent(array | object $data, string $keyName): mixed
+    /**
+     * Function getPrimaryKeyValueIfPresent
+     *
+     * @param array|object $data
+     * @param string       $keyName
+     *
+     * @return mixed
+     */
+    protected function getPrimaryKeyValueIfPresent($data, string $keyName)
     {
         return $data[$keyName] ?? null;
     }
@@ -113,7 +92,7 @@ abstract class Controller extends BaseController
      * @param array         $data
      * @param string|object $instance
      */
-    protected function setDataBaseTableDefaultValues(array &$data, string | object $instance): void
+    protected function setDataBaseTableDefaultValues(array &$data, $instance): void
     {
         LoadDataBaseTableDefaultSchema::setDataBaseTableDefaultValues($data, $instance::tableName());
     }

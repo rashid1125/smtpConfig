@@ -16,9 +16,9 @@ use App\Models\Email;
 
 class EmailDataTable extends BaseDataTable
 {
-    protected int                                 $companyId;
-    protected mixed                               $searchValue;
-    protected \Illuminate\Database\Eloquent\Model $model;
+    protected $companyId;
+    protected $searchValue;
+    protected $model;
 
     public function __construct($companyId, $searchValue = null)
     {
@@ -34,7 +34,7 @@ class EmailDataTable extends BaseDataTable
      *
      * @return \Yajra\DataTables\EloquentDataTable|\Yajra\DataTables\DataTableAbstract
      */
-    public function dataTable($query): \Yajra\DataTables\EloquentDataTable | \Yajra\DataTables\DataTableAbstract
+    public function dataTable($query)
     {
         return datatables()->eloquent($query);
     }
@@ -46,7 +46,7 @@ class EmailDataTable extends BaseDataTable
      *
      * @return mixed
      */
-    public function query(...$params): mixed
+    public function query(...$params)
     {
         return $this->model->newQuery();
     }

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Exceptions;
 
 use Exception;
@@ -11,23 +12,23 @@ use Exception;
  */
 class UserAlertException extends Exception
 {
-    protected string $level;
-    protected mixed  $error;
+    protected $level;
+    protected $error;
 
     /**
      * Constructor for the UserAlertException class.
      *
-     * @param string         $message  The exception message.
-     * @param int            $code     The exception code.
-     * @param mixed          $error    Additional error data (optional).
-     * @param string         $level    The severity level of the alert (default: "danger").
+     * @param string $message The exception message.
+     * @param int $code The exception code.
+     * @param mixed $error Additional error data (optional).
+     * @param string $level The severity level of the alert (default: "danger").
      * @param Exception|null $previous The previous exception for exception chaining (optional).
      */
     public function __construct(
-        string    $message = "",
-        int       $code = 0,
-                  $error = null,
-        string    $level = "danger",
+        string    $message  = "",
+        int       $code     = 0,
+                  $error    = null,
+        string    $level    = "danger",
         Exception $previous = null
     ) {
         parent::__construct($message, $code, $previous);

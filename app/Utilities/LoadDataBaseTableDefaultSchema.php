@@ -1,140 +1,104 @@
 <?php
-/**
- * File LoadDataBaseTableDefaultSchema
- *
- * @package   App\Utilities\LoadDataBaseTableDefaultSchema
- *
- * @author    Rashid Rasheed <rashidrasheed1125@gmail.com>
- *
- * @copyright Shahid & Rashid (SR)
- * @version   1.0
- */
-declare(strict_types = 1);
+// app/Utilities/LoadDataBaseTableDefaultSchema.php
 namespace App\Utilities;
 
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 final class LoadDataBaseTableDefaultSchema
 {
-    /**
-     * Function setDataBaseTableDefaultValues
-     *
-     * @param array  $data
-     * @param string $tableName
-     */
-    public static function setDataBaseTableDefaultValues(array &$data, string $tableName): void
-    {
-        $defaultValues = self::getDataBaseTableDefaultValues($tableName);
-        if (self::isMultiDimensionalArray($data)) {
-            foreach ($data as &$subArray) {
-                if (is_array($subArray)) {
-                    self::applyDefaultValuesToSingleLevelArray($subArray, $defaultValues);
-                }
-            }
-        } else {
-            self::applyDefaultValuesToSingleLevelArray($data, $defaultValues);
-        }
+  /**
+   * Registers a Doctrine type mapping.
+   */
+  public static function registerDoctrineTypeMapping()
+  {
+    DB::connection()
+      ->getDoctrineSchemaManager()
+      ->getDatabasePlatform()
+      ->registerDoctrineTypeMapping('enum', 'string');
+  }
+  public static function getDataBaseTableDefaultValues($tableName)
+  {
+    $defaultValues = [];
+    $columns = Schema::getColumnListing($tableName);
+
+    foreach ($columns as $column) {
+      $columnType = DB::connection()->getDoctrineColumn($tableName, $column);
+      $defaultValues[$column] = $columnType->getDefault();
     }
 
-    /**
-     * Function getDataBaseTableDefaultValues
-     *
-     * @param string $tableName
-     *
-     * @return array
-     */
-    public static function getDataBaseTableDefaultValues(string $tableName): array
-    {
-        $defaultValues = [];
-        $query         = "select COLUMN_NAME, COLUMN_DEFAULT, DATA_TYPE from INFORMATION_SCHEMA.COLUMNS where TABLE_SCHEMA = database() and TABLE_NAME = ?";
-        $columns       = DB::select($query, [$tableName]);
-        foreach ($columns as $column) {
-            $defaultValues[$column->COLUMN_NAME] = [
-                'default' => $column->COLUMN_DEFAULT,
-                'type'    => $column->DATA_TYPE,
-            ];
-        }
+    return $defaultValues;
+  }
 
-        return $defaultValues;
+  public static function setDataBaseTableDefaultValues(array &$data, $tableName)
+  {
+    self::registerDoctrineTypeMapping();
+    $defaultValues = self::getDataBaseTableDefaultValues($tableName);
+    // Check if data is a multi-dimensional array
+    if (self::isMultiDimensionalArray($data)) {
+      foreach ($data as &$subArray) {
+        if (is_array($subArray)) {
+          self::applyDefaultValuesToSingleLevelArray($subArray, $defaultValues);
+        }
+      }
+    } else {
+
+      self::applyDefaultValuesToSingleLevelArray($data, $defaultValues);
     }
-
-    /**
-     * Function isMultiDimensionalArray
-     *
-     * @param array $array
-     *
-     * @return bool
-     */
-    private static function isMultiDimensionalArray(array $array): bool
-    {
-        foreach ($array as $element) {
-            if (is_array($element)) {
-                return true;
-            }
-        }
-
-        return false;
+  }
+  /**
+   * Applies default values to a single-level array.
+   *
+   * @param array &$array The single-level array.
+   * @param array $defaultValues The default values.
+   */
+  private static function applyDefaultValuesToSingleLevelArray(array &$array, array $defaultValues)
+  {
+    foreach ($defaultValues as $column => $defaultValue) {
+      if (self::shouldSetValue($array, $column, $defaultValue)) {
+        $array[$column] = $defaultValue;
+      }
     }
-
-    /**
-     * Function applyDefaultValuesToSingleLevelArray
-     *
-     * @param array $array
-     * @param array $defaultValues
-     */
-    private static function applyDefaultValuesToSingleLevelArray(array &$array, array $defaultValues): void
-    {
-        foreach ($defaultValues as $column => $meta) {
-            $defaultValue    = $meta['default'];
-            $dataType        = $meta['type'];
-            $normalizedValue = self::normalizeDefaultValue($defaultValue, $dataType);
-            if (self::shouldSetValue($array, $column, $normalizedValue)) {
-                $array[$column] = $normalizedValue;
-            }
-        }
-    }
-
-    /**
-     * Normalize the default value based on the column's data type.
-     *
-     * @param mixed  $defaultValue
-     * @param string $dataType
-     *
-     * @return mixed
-     */
-    private static function normalizeDefaultValue(mixed $defaultValue, string $dataType): mixed
-    {
-        if ($defaultValue === 'NULL' || $defaultValue === null) {
-            return null;
-        }
-
-        return match ($dataType) {
-            'int', 'bigint', 'smallint', 'tinyint'                     => (int)$defaultValue,
-            'decimal', 'float', 'double'                               => (float)$defaultValue,
-            'varchar', 'char', 'text', 'date', 'datetime', 'timestamp' => (string)$defaultValue,
-            default                                                    => $defaultValue,
-        };
-    }
-
-    /**
-     * Function shouldSetValue
-     *
-     * @param array|object $data
-     * @param string       $column
-     * @param mixed        $defaultValue
-     *
-     * @return bool
-     */
-    private static function shouldSetValue(array | object $data, string $column, mixed $defaultValue): bool
-    {
-        if (! empty($data[$column])) {
-            if (! validateValue($data[$column])) {
-                return true;
-            }
-
-            return false;
-        }
-
+  }
+  /**
+   * Checks if an array is multi-dimensional.
+   *
+   * @param array $array The array to check.
+   * @return bool True if array is multi-dimensional, false otherwise.
+   */
+  private static function isMultiDimensionalArray(array $array)
+  {
+    foreach ($array as $element) {
+      if (is_array($element)) {
         return true;
+      }
     }
+    return false;
+  }
+
+  private static function shouldSetValue($data, $column, $defaultValue)
+  {
+    // Check if the value is set and not null. If set, no need to apply default.
+    if (isset($data[$column]) && $data[$column] !== null) {
+      // Special case for 'null' string.
+      if (is_string($data[$column]) && strtolower($data[$column]) === "null") {
+        return true; // Apply default value when explicitly 'null'.
+      }
+      // Special handling for empty strings, considering when NOT to apply default.
+      if (is_string($data[$column]) && trim($data[$column]) === '') {
+        // Apply default if default value is not empty, otherwise consider it set.
+        return $defaultValue !== '';
+      }
+      // For numeric default values, check if the current value is not numeric and default is numeric.
+      if (is_numeric($defaultValue) && !is_numeric($data[$column])) {
+        return true; // Apply default value if current value is not numeric but should be.
+      }
+
+      // If none of the special conditions are met, the value is considered set appropriately.
+      return false;
+    }
+
+    // The column is not set or is null, so the default value should be applied.
+    return true;
+  }
 }

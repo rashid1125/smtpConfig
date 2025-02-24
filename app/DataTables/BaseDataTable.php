@@ -1,21 +1,11 @@
 <?php
-/**
- * Class BaseDataTable
- *
- * @package   App\DataTables
- *
- * @author    Rashid Rasheed <rashidrasheed1125@gmail.com>
- *
- * @copyright Shahid && Rashid (SR)
- * @version   1.0
- */
+
 namespace App\DataTables;
 
-use App\Enums\ActiveEnums;
 use App\Traits\ExceptionHandlingTrait;
-use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Model;
 use Yajra\DataTables\Services\DataTable;
+use Carbon\Carbon;
+use App\Enums\ActiveEnums;
 
 /**
  * Abstract class BaseDataTable.
@@ -25,70 +15,75 @@ abstract class BaseDataTable extends DataTable
 {
     use ExceptionHandlingTrait;
 
-    protected Model         $model;
-    protected int           $companyId;
-    protected string | null $fromDate;
-    protected string | null $toDate;
-    protected mixed         $searchValue;
+    protected $model;
+    protected $companyId;
+    protected $financialYearId;
+    protected $fromDate;
+    protected $toDate;
+    protected $searchValue;
 
     /**
-     * @param \Illuminate\Database\Eloquent\Model $model
-     * @param int                                 $companyId
-     * @param                                     ...$arrays
+     * BaseDataTable constructor.
+     * Initializes common properties for DataTables.
+     *
+     * @param mixed $model The Eloquent model associated with this DataTable.
+     * @param int $companyId Company ID for filtering results.
+     * @param int $financialYearId Financial Year ID for filtering results.
+     * @param string|null $fromDate Starting date filter.
+     * @param string|null $toDate Ending date filter.
+     * @param string|null $searchValue Search query for filtering results.
      */
-    public function __construct(Model $model, int $companyId, ...$arrays)
+    public function __construct($model, $companyId, $financialYearId, $fromDate = null, $toDate = null, $searchValue = null)
     {
-        parent::__construct();
-        $this->model     = $model;
-        $this->companyId = $companyId;
-        [$searchValue] = $arrays;
-        $this->searchValue = $searchValue;
+        $this->model           = $model;
+        $this->companyId       = $companyId;
+        $this->financialYearId = $financialYearId;
+        $this->fromDate        = $this->parseDate($fromDate);
+        $this->toDate          = $this->parseDate($toDate);
+        $this->searchValue     = $searchValue;
     }
 
     /**
-     * Function dataTable
+     * Parses a date string to a standard format.
      *
-     * @param $query
-     *
-     * @return mixed
-     */
-    abstract public function dataTable($query): mixed;
-
-    /**
-     * Function query
-     *
-     * @param ...$params
-     *
-     * @return mixed
-     */
-    abstract public function query(...$params): mixed;
-
-    /**
-     * Function transformActiveColumn
-     *
-     * @param $query
-     * @param $columnName
-     *
-     * @throws \Yajra\DataTables\Exceptions\Exception
-     *
-     * @return \Yajra\DataTables\EloquentDataTable
-     */
-    public function transformActiveColumn($query, $columnName = 'active'): \Yajra\DataTables\EloquentDataTable
-    {
-        return datatables()->eloquent($query)->editColumn($columnName, function ($item) use ($columnName) {
-            return $item->$columnName == 1 ? ActiveEnums::YES : ActiveEnums::NO;
-        });
-    }
-
-    /**
-     * Function parseDate
-     *
-     * @param string|null $date
-     *
-     * @return string|null
+     * @param string|null $date Date string to be parsed.
+     * @return string|null Formatted date string or null if input is null.
      */
     protected function parseDate(?string $date): ?string
     {
         return $date ? Carbon::parse($date)->format('Y-m-d') : null;
+    }
+
+    /**
+     * Abstract method to build the DataTable.
+     * Must be implemented by child classes.
+     *
+     * @param mixed $query Query or model instance for DataTable source.
+     * @return \Yajra\DataTables\DataTableAbstract DataTable instance.
+     */
+    abstract public function dataTable($query);
+
+    /**
+     * Abstract method to define the query source of the DataTable.
+     * Must be implemented by child classes.
+     *
+     * @param mixed ...$params Additional parameters for query customization.
+     */
+    abstract public function query(...$params);
+
+    /**
+     * Applies a transformation to the specified column.
+     * Transforms values to 'Yes' or 'No'.
+     *
+     * @param mixed $query Query or model instance for DataTable source.
+     * @param string $columnName Name of the column to transform.
+     * @return \Yajra\DataTables\DataTableAbstract DataTable instance with modified column.
+     */
+    public function transformActiveColumn($query, $columnName = 'active')
+    {
+        return datatables()->eloquent($query)
+            ->editColumn($columnName, function ($item) use ($columnName) {
+                return $item->$columnName == 1 ? ActiveEnums::YES : ActiveEnums::NO;
+            });
     }
 }

@@ -11,19 +11,14 @@ use Throwable;
 
 class Handler extends ExceptionHandler
 {
-    /** @var array $dontReport */
     protected $dontReport = [];
-    /** @var string[] $dontFlash */
-    protected $dontFlash = [
+    protected $dontFlash  = [
         'current_password',
         'password',
         'password_confirmation',
     ];
 
-    /**
-     * Function register
-     */
-    public function register(): void
+    public function register()
     {
         $this->reportable(function (Throwable $e) {
             // ...
@@ -33,22 +28,24 @@ class Handler extends ExceptionHandler
     /**
      * Function report
      *
-     * @param \Throwable $e
+     * @param \Throwable $exception
      *
      * @throws \Throwable
+     * @return void
      */
-    public function report(Throwable $e): void
+    public function report(Throwable $exception)
     {
-        if ($this->shouldReport($e) && ! config('app.debug')) {
-            if ($e instanceof ParseError) {
+        if ($this->shouldReport($exception) && ! config('app.debug')) {
+            // Check if it's a syntax error
+            if ($exception instanceof ParseError) {
                 $subject = 'Sk - Syntax Error Occurred';
             } else {
                 $subject = 'Sk - Exception Occurred';
             }
             // Send email
-            $this->sendEmail($e, $subject);
+            $this->sendEmail($exception, $subject);
         }
-        parent::report($e);
+        parent::report($exception);
     }
 
     /**
@@ -56,14 +53,16 @@ class Handler extends ExceptionHandler
      *
      * @param \Throwable $exception
      * @param            $subject
+     *
+     * @return void
      */
-    public function sendEmail(Throwable $exception, $subject = null): void
+    public function sendEmail(Throwable $exception, $subject = null)
     {
         try {
             if (is_null($subject)) {
                 $subject = env('APP_NAME') ?? env('APP_NAME') . ' - Exception Occurred';
             }
-            $recipients = ['rashidrasheed1125@gmail.com'];
+            $recipients = ['digitalm.otp@gmail.com'];
             foreach ($recipients as $recipient) {
                 $errorMail = new ErrorNotificationMail($exception, $subject, 'error');
                 Mail::to($recipient)->send($errorMail);
@@ -80,18 +79,17 @@ class Handler extends ExceptionHandler
      * Function render
      *
      * @param            $request
-     * @param \Throwable $e
+     * @param \Throwable $exception
      *
      * @throws \Throwable
-     *
-     * @return \Illuminate\Http\JsonResponse|\Symfony\Component\HttpFoundation\Response
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\Response|\Symfony\Component\HttpFoundation\Response
      */
-    public function render($request, Throwable $e): \Illuminate\Http\JsonResponse | \Symfony\Component\HttpFoundation\Response
+    public function render($request, Throwable $exception)
     {
-        if ($e instanceof TokenMismatchException) {
+        if ($exception instanceof TokenMismatchException) {
             return response()->json(['message' => 'Your session has expired. Please refresh the page and try again.'], 419);
         }
 
-        return parent::render($request, $e);
+        return parent::render($request, $exception);
     }
 }

@@ -1,15 +1,4 @@
 <?php
-/**
- * File ExceptionHandlingTrait
- *
- * @package   App\Traits
- *
- * @author    Rashid Rasheed <rashidrasheed1125@gmail.com>
- *
- * @copyright Shahid & Rashid (SR)
- * @version   1.0
- */
-declare(strict_types = 1);
 namespace App\Traits;
 
 use App\Exceptions\UserAlertException;
@@ -24,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 trait ExceptionHandlingTrait
 {
-    protected function runException(Closure $closure)
+    protected function runException(\Closure $closure)
     {
         try {
             return $closure();
@@ -33,36 +22,38 @@ trait ExceptionHandlingTrait
         }
     }
 
-    /**
-     * Function handleException
-     *
-     * @param \Exception $e
-     *
-     * @return array
-     */
-    protected function handleException(Exception $e): array
+    protected function handleException(Exception $e)
     {
         if (! config('app.debug')) {
-            Log::error($e->getMessage(), $e->getTrace());
+            // Log the error to ensure it's captured in the logs.
+            Log::error($e);
         }
-        $statusCode = HttpResponse::HTTP_INTERNAL_SERVER_ERROR;
+        $statusCode = HttpResponse::HTTP_INTERNAL_SERVER_ERROR; // Default status code for server errors
+        // Handle validation exceptions specifically
         if ($e instanceof ValidationException) {
-            $statusCode = HttpResponse::HTTP_BAD_REQUEST;
+            $statusCode = HttpResponse::HTTP_UNPROCESSABLE_ENTITY; // 422
 
             return $this->getResponse(false, $statusCode, $e->getMessage(), null, 'danger');
         }
+        // Handle query exceptions which include SQL specific errors
         if ($e instanceof QueryException) {
-            Log::error('QueryException: ' . $e->getMessage(), $e->getTrace());
+            // Log additional details about the query exception
+            Log::error('QueryException: ' . $e->getMessage());
 
             return $this->getResponse(false, HttpResponse::HTTP_INTERNAL_SERVER_ERROR, $e->getMessage(), null, 'danger');
         }
+        // User-defined exceptions for specific user alerts
         if ($e instanceof UserAlertException) {
             return $this->getResponse(false, $e->getCode(), $e->getMessage(), null, $e->getLevel());
         }
 
+        // Generic exception handling
         return $this->getResponse(false, $statusCode, $e->getMessage(), null, 'danger');
     }
 
+    /**
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Http\Response|mixed
+     */
     protected function runExceptionPrint(Closure $closure)
     {
         try {
@@ -72,6 +63,13 @@ trait ExceptionHandlingTrait
         }
     }
 
+    /**
+     * Function handelPrintException
+     *
+     * @param \Exception $exception
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     private function handelPrintException(Exception $exception): View
     {
         if (config('app.debug')) {

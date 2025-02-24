@@ -27,7 +27,7 @@ class DashboardController extends Controller
      *
      * @return \Illuminate\Contracts\View\View|\Illuminate\Foundation\Application|\Illuminate\Contracts\View\Factory
      */
-    public function index(): \Illuminate\Contracts\View\View | \Illuminate\Foundation\Application | \Illuminate\Contracts\View\Factory
+    public function index()
     {
         $data['title']   = 'Dashboard';
         $data['header']  = view('layouts.header', $data);

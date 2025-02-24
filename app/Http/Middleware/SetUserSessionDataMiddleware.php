@@ -17,7 +17,7 @@ class SetUserSessionDataMiddleware
      *
      * @return mixed
      */
-    public function handle(Request $request, Closure $next): mixed
+    public function handle(Request $request, Closure $next)
     {
         $user = Auth::user();
         if (Session::get('query_executed', false)) {

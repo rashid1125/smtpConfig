@@ -43,6 +43,37 @@ function getObjectToArray($object)
     return @json_decode(json_encode($object), true);
 }
 
+function getValidRoleGroupUserPermissions($RightsType, $RightsName, $ReturnFlag = false)
+{
+    // fetch role group from database by user session id
+    $userPermissions = User::getRoleGroupUserPermissions(Auth::user()->id);
+    $desc            = $userPermissions->desc;
+    // parse json into array
+    $desc = json_decode($desc);
+    $desc = getObjectToArray($desc);
+    //
+    $vouchers = $desc['vouchers'];
+    $reports  = $desc['reports'];
+    // check if array key exists in vouchers
+    if (array_key_exists($RightsName, $vouchers)) {
+        if ($RightsType === "vouchers") {
+            if (($vouchers[$RightsName][$RightsName]) == 1) {
+                $ReturnFlag = true;
+            }
+        }
+    }
+    // check if array key exists in reports
+    if (array_key_exists($RightsName, $reports)) {
+        if ($RightsType === "reports") {
+            if ($reports[$RightsName] == 1) {
+                $ReturnFlag = true;
+            }
+        }
+    }
+
+    return $ReturnFlag;
+}
+
 function _getBase64UrlEncode($input)
 {
     return strtr(base64_encode($input), 'Pass@3210$%A987654321RashidC987654321AliD123456789Mughal+/', '._-');
@@ -692,13 +723,13 @@ function handleTransactionListTableHeaderTh($voucherType)
 }
 
 /**
- * Function validateValue
+ * Summary of validateValue
  *
  * @param mixed $value
  *
  * @return bool
  */
-function validateValue(mixed $value): bool
+function validateValue($value): bool
 {
     if ($value === null || $value === '' || $value === 0 || $value === '0' || $value === false || $value === [] || strtolower($value) === 'null' || strtolower($value) === 'undefined') {
         return false;

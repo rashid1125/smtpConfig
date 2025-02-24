@@ -99,7 +99,7 @@ class AuthController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse|bool|array
      */
-    public function login(Request $request): \Illuminate\Http\JsonResponse | bool | array
+    public function login(Request $request): \Illuminate\Http\JsonResponse
     {
         $result = $this->runException(function () use ($request) {
             $validateUser = Validator::make(

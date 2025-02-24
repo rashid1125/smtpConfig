@@ -1,40 +1,42 @@
 <?php
-/**
- * File ExceptionHandlingTrait
- *
- * @package   App\Traits
- *
- * @author    Rashid Rasheed <rashidrasheed1125@gmail.com>
- *
- * @copyright Shahid & Rashid (SR)
- * @version   1.0
- */
-declare(strict_types = 1);
 namespace App\Traits;
 
 use App\Exceptions\UserAlertException;
 use App\Models\SettingConfiguration;
-use BadMethodCallException;
 use Carbon\Carbon;
+use Carbon\Exceptions\BadMethodCallException;
 use Closure;
 use ErrorException;
 use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Contracts\Debug\ExceptionHandler;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Database\QueryException;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
-use JetBrains\PhpStorm\ArrayShape;
 use RuntimeException;
+use Swift_TransportException;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
+/**
+ * Trait BaseHandlingTrait
+ *
+ * Provides a collection of methods to handle transactions, exceptions, and data manipulations.
+ */
 trait BaseHandlingTrait
 {
-    use CanGetTableNameStatically, DetailTableDataHandlerTrait, LedgerDetailsTrait, DataValidationTrait, DynamicOptionTrait, ExceptionHandlingTrait, GetterSetterTrait, SupervisionTrait;
+    use CanGetTableNameStatically, LedgerDetailsTrait, DataValidationTrait, DynamicOptionTrait, ExceptionHandlingTrait, GetterSetterTrait, SupervisionTrait;
 
+    /**
+     * Function runTransaction
+     *
+     * @param \Closure $closure
+     *
+     * @return array|mixed
+     */
     protected function runTransaction(Closure $closure)
     {
         DB::beginTransaction();
@@ -66,7 +68,7 @@ trait BaseHandlingTrait
         if (! config('app.debug')) {
             Log::error($e);
         }
-        $statusCode = HttpResponse::HTTP_BAD_REQUEST;
+        $statusCode = HttpResponse::HTTP_INTERNAL_SERVER_ERROR;
         if ($e instanceof RequestException) {
             $statusCode = $e->getCode() ? : $statusCode;
 
@@ -80,10 +82,19 @@ trait BaseHandlingTrait
 
             return $this->getResponse(false, $statusCode, $e->getMessage(), null, 'danger', $e->errors(), $e->getTrace());
         }
-        if ($e instanceof TokenMismatchException) {
-            $message = $e->getMessage() ?? "CSRF token mismatch. Please refresh the page and try again.";
+        if ($e instanceof QueryException) {
+            Log::error("QueryException: " . $e->getMessage());
+
+            return $this->getResponse(false, HttpResponse::HTTP_INTERNAL_SERVER_ERROR, $e->errorInfo[2], null, 'danger', $e->errorInfo, $e->getTrace());
+        }
+        if ($e instanceof HttpException || $e instanceof TokenMismatchException) {
+            $message    = $e instanceof TokenMismatchException ? "CSRF token mismatch. Please refresh the page and try again." : $e->getMessage();
+            $statusCode = $e instanceof HttpException ? $e->getStatusCode() : 500;
 
             return $this->getResponse(false, $statusCode, $message, null, 'danger', $e->getMessage(), $e->getTrace());
+        }
+        if ($e instanceof Swift_TransportException) {
+            return $this->getResponse(false, $statusCode, $e->getMessage(), null, 'danger', $e->getMessage(), $e->getTrace());
         }
         if ($e instanceof UserAlertException) {
             $statusCode = $e->getCode() ?? 422;
@@ -105,26 +116,18 @@ trait BaseHandlingTrait
     /**
      * Function getResponse
      *
-     * @param bool                   $status
-     * @param int                    $statusCode
-     * @param mixed                  $message
-     * @param array|object|bool|null $data
-     * @param string                 $level
-     * @param                        $error
-     * @param array|null             $trace
+     * @param bool       $status
+     * @param int        $statusCode
+     * @param string     $message
+     * @param mixed      $data
+     * @param string     $level
+     * @param mixed      $error
+     * @param array|null $trace
      *
      * @return array
      */
-    #[ArrayShape(['status' => "bool", 'statusCode' => "int", 'message' => "mixed", 'trace' => "array|null", 'error' => "mixed", 'level' => "string", 'data' => "array|bool|object"])]
-    protected function getResponse(
-        bool                         $status,
-        int                          $statusCode,
-        mixed                        $message,
-        array | object | bool | null $data = null,
-        string                       $level = 'error',
-                                     $error = null,
-        ?array                       $trace = []
-    ): array {
+    protected function getResponse(bool $status, int $statusCode, string $message, $data = null, string $level = 'error', $error = null, ?array $trace = []): array
+    {
         $response = [
             'status'     => $status,
             'statusCode' => $statusCode,
@@ -150,15 +153,15 @@ trait BaseHandlingTrait
     /**
      * Function generateResponse
      *
-     * @param bool|array|object $result
-     * @param string|null       $message
-     * @param null              $messageFailed
-     * @param bool|null         $isDataTable
-     * @param array             $props
+     * @param           $result
+     * @param           $message
+     * @param           $messageFailed
+     * @param bool|null $isDataTable
+     * @param array     $props
      *
-     * @return \Illuminate\Http\JsonResponse|bool|array
+     * @return \Illuminate\Http\JsonResponse|mixed
      */
-    protected function generateResponse(bool | array | object $result, string $message = null, $messageFailed = null, ?bool $isDataTable = false, array $props = []): JsonResponse | bool | array
+    protected function generateResponse($result, $message = null, $messageFailed = null, ?bool $isDataTable = false, array $props = [])
     {
         if (is_array($result) && isset($result['statusCode'])) {
             $response = $result;
@@ -180,10 +183,10 @@ trait BaseHandlingTrait
             if (! empty($props)) {
                 $result = array_merge($result, $props);
             }
-            $response = $this->getResponse(true, 200, $message ?? $messageFailed ?? 'Operation completed successfully', $result);
+            $response = $this->getResponse(true, 200, $message ?? 'Operation completed successfully', $result);
         }
 
-        return response()->json($response, $response['statusCode']);
+        return response()->json($response, $response['statusCode'] ?? HttpResponse::HTTP_FAILED_DEPENDENCY);
     }
 
     /**
@@ -199,13 +202,12 @@ trait BaseHandlingTrait
     }
 
     /**
-     * Function getFormatedDate
+     * Formats a date according to the configured or default format.
      *
-     * @param string|null $date
+     * @param string|null $date The date string to be formatted.
      *
-     * @throws \App\Exceptions\UserAlertException
-     *
-     * @return string|null
+     * @throws UserAlertException If the date input is null or not a string.
+     * @return string Formatted date string.
      */
     protected function getFormatedDate(?string $date): ?string
     {
@@ -251,7 +253,7 @@ trait BaseHandlingTrait
      * @deprecated version 1.0.0
      * @return array Structured response array.
      */
-    protected function getReturnResponse(bool $success, string $message, mixed $data = null, mixed $error = null, array $trace = [], array $options = []): array
+    protected function getReturnResponse(bool $success, string $message, $data = null, $error = null, array $trace = [], array $options = []): array
     {
         $response          = [
             'status'  => $success,

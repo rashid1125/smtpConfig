@@ -1,20 +1,20 @@
-import defaultTheme from 'tailwindcss/defaultTheme';
-
 /** @type {import('tailwindcss').Config} */
-export default {
-    content: [
-        './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
-        './storage/framework/views/*.php',
-        './resources/**/*.blade.php',
-        './resources/**/*.js',
-        './resources/**/*.vue',
-    ],
-    theme: {
-        extend: {
-            fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
-            },
-        },
-    },
-    plugins: [],
+module.exports = {
+  content: [
+    '.app/Helpers/**/*.php',
+    './resources/views/**/*.php',
+    './public/assets/js/app_modules/**/*.js',
+    './resources/js/**/*.js',
+  ],
+  plugins: [
+    require('@tailwindcss/forms'),
+    require('@tailwindcss/aspect-ratio'),
+    require('@tailwindcss/typography'),
+    require('tailwindcss-children'),
+  ],
+  variants: {
+    extend: {
+      backgroundColor: ['responsive', 'hover', 'focus', 'group-hover'],
+    }
+  }
 };

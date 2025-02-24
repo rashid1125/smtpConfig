@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Middleware;
 
 use Illuminate\Auth\Middleware\Authenticate as Middleware;
@@ -6,11 +7,10 @@ use Illuminate\Auth\Middleware\Authenticate as Middleware;
 class Authenticate extends Middleware
 {
     /**
-     * Function redirectTo
+     * Get the path the user should be redirected to when they are not authenticated.
      *
-     * @param $request
-     *
-     * @return string|void|null
+     * @param  \Illuminate\Http\Request  $request
+     * @return string|null
      */
     protected function redirectTo($request)
     {
