@@ -65,7 +65,7 @@ class EmailController extends Controller
         $result = $this->runTransaction(function () use ($request) {
             $emailObject = json_decode($request->input('emailObject'), true);
             $emailId     = $this->getPrimaryKeyValueIfPresent($emailObject, Email::tableKey());
-            if (isset($emailObject[Email::EMAIL_PASSWORD])) {
+            if (isset($emailObject[Email::EMAIL_PASSWORD]) && ! empty($emailObject[Email::EMAIL_PASSWORD])) {
                 $emailObject[Email::EMAIL_PASSWORD] = Crypt::encryptString($emailObject[Email::EMAIL_PASSWORD]);
             }
             $this->setDataBaseTableDefaultValues($emailObject, Email::class);
