@@ -136,7 +136,7 @@ trait FunctionsTrait
         if (empty($emails)) {
             throw new UserAlertException("Email list cannot be empty", 400);
         }
-        $whitelistedDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'digitalsofts.com', 'icloud.com'];
+        $whitelistedDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'digitalsofts.com', 'icloud.com','hotmail.com'];
         foreach ($emails as $email) {
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 throw new UserAlertException("Invalid email format: {$email}", 400);
