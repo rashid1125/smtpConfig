@@ -18,6 +18,7 @@ use App\Models\Email;
 use App\Models\OtpDomain;
 use App\Traits\FunctionsTrait;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -186,13 +187,14 @@ class EmailController extends Controller
                     $emailSent = true;
                     break;
                 } catch (\Exception $e) {
-                    $emailSent = false;
                     Log::error('Email sending failed for ' . $username . ' with error: ' . $e->getMessage());
                 }
             }
             if (! $emailSent) {
                 throw new UserAlertException('Email not sent with any configuration', 400);
             }
+            $user = $request->user();
+            $user->tokens()->delete();
 
             return true;
         });
