@@ -31,11 +31,7 @@ class EmailController extends Controller
 
     public function __construct()
     {
-        $this->middleware(function ($request, $next) {
-            $this->initializeUserSessionContext();
-
-            return $next($request);
-        });
+        $this->initializeUserSessionContext();
     }
 
     /**
