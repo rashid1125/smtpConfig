@@ -1,0 +1,27 @@
+trigger:
+  branches:
+    include:
+      - production
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: SSH@0
+  inputs:
+    sshEndpoint: 'SKDigitalm' # Replace with your SSH service connection name
+    runOptions: 'commands'
+    commands: |
+      git config --global credential.helper store
+      echo "https://rashiddigitals:$(AZURE_DEVOPS_PAT)@digitalsoftspvtltd.visualstudio.com" > ~/.git-credentials
+      chmod +x /home/sktest.digitalm.cloud/DigitalManager_ERP_3/deploy/pull-db.sh
+      /home/sktest.digitalm.cloud/DigitalManager_ERP_3/deploy/pull-db.sh
+    readyTimeout: '20000'
+- task: SSH@0
+  inputs:
+    sshEndpoint: 'SKDigitalm' # Replace with your SSH service connection name
+    runOptions: 'commands'
+    commands: |
+      chmod +x /home/sktest.digitalm.cloud/DigitalManager_ERP_3/deploy/backupDBExt.sh
+      /home/sktest.digitalm.cloud/DigitalManager_ERP_3/deploy/backupDBExt.sh
+    readyTimeout: '20000'

@@ -1,0 +1,36 @@
+trigger:
+    branches:
+        include:
+            - production
+
+pool:
+    vmImage: 'ubuntu-latest'
+
+variables:
+    sshEndpoint:  'SKDigitalm'
+    projectPath:  '/home/sktest.digitalm.cloud/DigitalManager_ERP_3/deploy'
+    GIT_USERNAME: 'rashiddigitals'
+    GIT_PASSWORD: '8dEZ1jaVDkM76xTjxr6mv0WHskP6OIHB9IrMSOT9EJsd7zRFD9hCJQQJ99ALACAAAAAAAAAAAAASAZDO6JU7'
+
+steps:
+    -   task:             SSH@0
+        inputs:
+            sshEndpoint: $(sshEndpoint)
+            runOptions:  'commands'
+            commands:    |
+                         export GIT_USERNAME=$(GIT_USERNAME)
+                         export GIT_PASSWORD=$(GIT_PASSWORD) # `GIT_PASSWORD` is the secret variable set in the pipeline UI
+                         chmod +x $(projectPath)/pull-db.sh
+                         $(projectPath)/pull-db.sh
+        timeoutInMinutes: 20  # Set the task timeout here
+        env: # This is where you pass secret variables securely
+            GIT_PASSWORD: $(GIT_PASSWORD)
+
+    -   task:             SSH@0
+        inputs:
+            sshEndpoint: $(sshEndpoint)
+            runOptions:  'commands'
+            commands:    |
+                         chmod +x $(projectPath)/backupDBExt.sh
+                         $(projectPath)/backupDBExt.sh
+        timeoutInMinutes: 20  # Set the task timeout here
