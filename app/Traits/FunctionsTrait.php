@@ -15,6 +15,7 @@ namespace App\Traits;
 use App\Events\ModelCreated;
 use App\Events\ModelUpdated;
 use App\Exceptions\UserAlertException;
+use App\Models\WhiteListDomain;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 
@@ -136,7 +137,7 @@ trait FunctionsTrait
         if (empty($emails)) {
             throw new UserAlertException("Email list cannot be empty", 400);
         }
-        $whitelistedDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'digitalsofts.com', 'icloud.com','hotmail.com'];
+        $whitelistedDomains = WhiteListDomain::pluck('domain')->toArray();
         foreach ($emails as $email) {
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 throw new UserAlertException("Invalid email format: {$email}", 400);
@@ -148,9 +149,6 @@ trait FunctionsTrait
             $domain = substr(strrchr($email, "@"), 1);
             if (! $this->domainHasMXRecord($domain)) {
                 throw new UserAlertException("Invalid email domain: {$email}", 400);
-            }
-            if (! $this->smtpVerifyEmail($email)) {
-                throw new UserAlertException("Email address does not exist: {$email}", 400);
             }
         }
 
@@ -169,59 +167,6 @@ trait FunctionsTrait
         $records = dns_get_record($domain, DNS_MX);
 
         return ! empty($records);
-    }
-
-    /**
-     * Function smtpVerifyEmail
-     *
-     * @param string $email
-     *
-     * @throws \Exception
-     *
-     * @return bool
-     */
-    private function smtpVerifyEmail(string $email): bool
-    {
-        $domain  = substr(strrchr($email, "@"), 1);
-        $records = dns_get_record($domain, DNS_MX);
-        if (! $records) {
-            throw new UserAlertException("No MX records found for the domain",500);
-        }
-        $mx         = $records[0]['target'];
-        $connection = @fsockopen($mx, 25, $errno, $errstr, 10); // 10 seconds timeout
-        if (! $connection) {
-            throw new UserAlertException("Could not connect to email server: {$errstr} ({$errno})",500);
-        }
-        $response = fgets($connection, 1024);
-        if (strpos($response, '220') === false) {
-            fclose($connection);
-            throw new UserAlertException("Unexpected SMTP response: $response",500);
-        }
-        // Proceed with HELO command
-        fwrite($connection, "HELO $mx\r\n");
-        $response = fgets($connection, 1024);
-        if (strpos($response, '250') === false) {
-            fclose($connection);
-            throw new UserAlertException("HELO command failed: $response",500);
-        }
-        // MAIL FROM command
-        fwrite($connection, "MAIL FROM: <check@example.com>\r\n");
-        $response = fgets($connection, 1024);
-        if (strpos($response, '250') === false) {
-            fclose($connection);
-            throw new UserAlertException("MAIL FROM command failed: $response",500);
-        }
-        // RCPT TO command
-        fwrite($connection, "RCPT TO: <$email>\r\n");
-        $response = fgets($connection, 1024);
-        fclose($connection);
-        if (strpos($response, '250') !== false) {
-            return true;
-        } elseif (strpos($response, '550') !== false) {
-            return false;
-        } else {
-            throw new UserAlertException("Unexpected SMTP response: $response",500);
-        }
     }
 
     /**

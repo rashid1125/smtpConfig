@@ -14,11 +14,13 @@ namespace App\Http\Controllers;
 use App\DataTables\EmailDataTable;
 use App\Exceptions\UserAlertException;
 use App\Mail\OtpMail;
+use App\Mail\TokenExpiredMail;
 use App\Models\Email;
 use App\Models\OtpDomain;
 use App\Traits\FunctionsTrait;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -60,7 +62,7 @@ class EmailController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse|bool|array
      */
-    public function saveEmail(Request $request): \Illuminate\Http\JsonResponse
+    public function saveEmail(Request $request): JsonResponse
     {
         $result = $this->runTransaction(function () use ($request) {
             $emailObject = json_decode($request->input('emailObject'), true);
@@ -91,7 +93,7 @@ class EmailController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse|bool|array
      */
-    public function getEmailById(Request $request): \Illuminate\Http\JsonResponse
+    public function getEmailById(Request $request): JsonResponse
     {
         $result = $this->runException(function () use ($request) {
             $emailId = $request->input('emailId');
@@ -113,7 +115,7 @@ class EmailController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse|bool|array
      */
-    public function getEmailDataTable(Request $request): \Illuminate\Http\JsonResponse
+    public function getEmailDataTable(Request $request): JsonResponse
     {
         $result = $this->runException(function () use ($request) {
             $companyId      = $this->getCompanyId();
@@ -136,7 +138,7 @@ class EmailController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse|bool|array
      */
-    public function sendOtpEmail(Request $request): \Illuminate\Http\JsonResponse
+    public function sendOtpEmail(Request $request): JsonResponse
     {
         $result = $this->runException(function () use ($request) {
             $validated = $request->validate(
@@ -156,18 +158,25 @@ class EmailController extends Controller
             if (! $domain) {
                 throw new UserAlertException('Domain not found', 404);
             }
-            $emails = DB::table('emails')->whereRaw('find_in_set(?, domain_ids)', [$domain->id])->get();
+            $emails = DB::table('emails')->whereRaw('find_in_set(?, trim(domain_ids))', [trim($domain->id)])->get();
             if ($emails->isEmpty()) {
                 throw new UserAlertException('Email not found', 404);
             }
             $emailSent = false;
             foreach ($emails as $email) {
-                $host       = $email->host;
-                $port       = $email->port;
-                $from_email = $email->from_email;
-                $username   = $email->username;
-                $password   = Crypt::decryptString($email->password);
+                $host                = $email->host;
+                $port                = $email->port;
+                $from_email          = $email->from_email;
+                $username            = $email->username;
+                $passwordLastUpdated = $email->updated_at ?? $email->created_at;
+                if (now()->diffInDays($passwordLastUpdated) >= 14) {
+                    $message = "Email password for $username is about to expire";
+                    $this->sendEmail('Email Password Expiry', $message, $username);
+                    continue;
+                }
+                $password = Crypt::decryptString($email->password);
                 if (empty($password)) {
+                    Log::error('Email password not found for ' . $username);
                     throw new UserAlertException('Email password not found', 404);
                 }
                 $encryption = $email->encryption;
@@ -186,11 +195,12 @@ class EmailController extends Controller
                     Mail::mailer($mailerName)->to($otpEmail)->send($mailable);
                     $emailSent = true;
                     break;
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     Log::error('Email sending failed for ' . $username . ' with error: ' . $e->getMessage());
                 }
             }
             if (! $emailSent) {
+                Log::error('Email not sent with any configuration');
                 throw new UserAlertException('Email not sent with any configuration', 400);
             }
             $user = $request->user();
@@ -221,5 +231,11 @@ class EmailController extends Controller
         }
 
         return explode(',', $otpEmail);
+    }
+
+    private function sendEmail(string $subject, string $message, $username)
+    {
+        $mailable = new TokenExpiredMail($subject, $message, $username);
+        Mail::to(['developer@digitalsofts.com'])->send($mailable);
     }
 }
