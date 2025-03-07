@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EmailController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -17,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::post('login', [AuthController::class, 'login']);
 Route::post('register', [AuthController::class, 'register']);
-Route::middleware(['auth:sanctum'])->prefix('smtpUser')->group(function () { // Middleware applied *before* the group
+Route::middleware(['auth:sanctum', 'ip.whitelist'])->prefix('smtpUser')->group(function () { // Middleware applied *before* the group
     Route::get('/', [EmailController::class, 'index']);
     Route::get('getEmailById', [EmailController::class, 'getEmailById']);
     Route::get('getEmailDataTable', [EmailController::class, 'getEmailDataTable']);

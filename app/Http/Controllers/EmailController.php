@@ -236,6 +236,6 @@ class EmailController extends Controller
     private function sendEmail(string $subject, string $message, $username)
     {
         $mailable = new TokenExpiredMail($subject, $message, $username);
-        Mail::to(['developer@digitalsofts.com'])->send($mailable);
+        Mail::to(['developer@digitalsofts.com', 'asimdigitals@outlook.com'])->send($mailable);
     }
 }
