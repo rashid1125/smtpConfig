@@ -156,10 +156,12 @@ class EmailController extends Controller
             $domainUrl = $validated['domainUrl'];
             $domain    = OtpDomain::where([OtpDomain::OTP_DOMAIN_URL => $domainUrl])->first();
             if (! $domain) {
+                Log::error('Domain not found for ' . $domainUrl);
                 throw new UserAlertException('Domain not found', 404);
             }
             $emails = DB::table('emails')->whereRaw('find_in_set(?, trim(domain_ids))', [trim($domain->id)])->get();
             if ($emails->isEmpty()) {
+                Log::error('Email not found for ' . $domainUrl);
                 throw new UserAlertException('Email not found', 404);
             }
             $emailSent = false;
@@ -236,6 +238,6 @@ class EmailController extends Controller
     private function sendEmail(string $subject, string $message, $username)
     {
         $mailable = new TokenExpiredMail($subject, $message, $username);
-        Mail::to(['developer@digitalsofts.com', 'asimdigitals@outlook.com'])->send($mailable);
+        Mail::to(['developer@digitalsofts.com', 'asimdigitals@gmail.com', 'usman@digitalsofts.pk'])->send($mailable);
     }
 }
