@@ -164,15 +164,18 @@ class EmailController extends Controller
                 Log::error('Email not found for ' . $domainUrl);
                 throw new UserAlertException('Email not found', 404);
             }
-            $emailSent = false;
+            $emailSent        = false;
+            $expiryDays       = 14;
+            $notifyBeforeDays = 1;
             foreach ($emails as $email) {
                 $host                = $email->host;
                 $port                = $email->port;
                 $from_email          = $email->from_email;
                 $username            = $email->username;
                 $passwordLastUpdated = $email->updated_at ?? $email->created_at;
-                if (now()->diffInDays($passwordLastUpdated) >= 14) {
-                    $message = "Email password for $username is about to expire";
+                $daysSinceUpdate     = now()->diffInDays($passwordLastUpdated);
+                if ($daysSinceUpdate == ($expiryDays - $notifyBeforeDays)) {
+                    $message = "Email password for $username is about to expire tomorrow";
                     $this->sendEmail('Email Password Expiry', $message, $username);
                     continue;
                 }
