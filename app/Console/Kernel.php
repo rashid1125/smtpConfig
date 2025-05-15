@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('backup:database')->daily()->at('02:00');
         // $schedule->command('inspire')->hourly();
+        $schedule->command('emails:check-password-expiry')->daily()->at('08:00');
     }
 
     /**
